@@ -27,6 +27,10 @@ htmlcov/
 *.swp
 *.swo
 
+# GitHub Copilot
+.github/copilot-instructions.md
+.github/copilot
+
 # OS
 .DS_Store
 Thumbs.db

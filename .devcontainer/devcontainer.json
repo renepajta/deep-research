@@ -11,22 +11,12 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "charliermarsh.ruff",
-        "redhat.vscode-yaml",
         "github.copilot",
         "github.copilot-chat"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "python.analysis.typeCheckingMode": "basic",
-        "[python]": {
-          "editor.defaultFormatter": "charliermarsh.ruff",
-          "editor.formatOnSave": true,
-          "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit"
-          }
-        },
-        "ruff.lint.args": ["--config=pyproject.toml"],
         "files.exclude": {
           "**/__pycache__": true,
           "**/*.pyc": true
@@ -35,19 +25,5 @@
     }
   },
 
-  "postCreateCommand": "pip install -e '.[dev]'",
-  
-  "postStartCommand": ".devcontainer/start-mcp.sh",
-
-  "forwardPorts": [8000],
-  "portsAttributes": {
-    "8000": {
-      "label": "MCP Server",
-      "onAutoForward": "notify"
-    }
-  },
-
-  "mounts": [
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached"
-  ]
+  "postCreateCommand": "pip install -e '.[dev]'"
 }
