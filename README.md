@@ -157,6 +157,15 @@ az ad sp create-for-rbac --name "deep-research" --role "Cognitive Services User"
 az login
 ```
 
+> ⚠️ **WSL Users**: Azure CLI authentication may not work when running from VS Code User Settings on WSL due to path and credential resolution issues. Use **Service Principal authentication** instead, or add explicit paths to your config:
+> ```json
+> "env": {
+>   "HOME": "/home/yourusername",
+>   "AZURE_CONFIG_DIR": "/home/yourusername/.azure",
+>   "PATH": "/home/yourusername/.local/bin:/usr/local/bin:/usr/bin:/bin"
+> }
+> ```
+
 #### Option 3: Managed Identity (Azure hosted environments)
 
 Automatically used when running in Azure Container Apps, Azure VMs, etc.
