@@ -19,12 +19,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
-[project.urls]
-Homepage = "https://github.com/renepajta/deep-research"
-Repository = "https://github.com/renepajta/deep-research.git"
-Issues = "https://github.com/renepajta/deep-research/issues"
-
 dependencies = [
     "mcp>=1.25.0",
     "openai>=2.14.0",
@@ -32,6 +26,11 @@ dependencies = [
     "pydantic>=2.12.5",
     "python-dotenv>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/renepajta/deep-research"
+Repository = "https://github.com/renepajta/deep-research.git"
+Issues = "https://github.com/renepajta/deep-research/issues"
 
 [project.optional-dependencies]
 dev = [
