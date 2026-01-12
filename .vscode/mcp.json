@@ -1,0 +1,28 @@
+{
+	"servers": {
+		"deep-research": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": ["--from", "git+https://github.com/renepajta/deep-research.git", "deep-research"],
+			"env": {
+				"PYTHONUNBUFFERED": "1",
+				"AI_FOUNDRY_ENDPOINT": "${input:aiFoundryEndpoint}",
+				"MODEL_DEPLOYMENT_NAME": "gpt-5.2",
+				"AI_FOUNDRY_DEEP_RESEARCH_ENDPOINT": "${input:aiFoundryDeepResearchEndpoint}",
+				"DEEP_RESEARCH_MODEL_DEPLOYMENT_NAME": "o3-deep-research"
+			}
+		}
+	},
+	"inputs": [
+		{
+			"id": "aiFoundryEndpoint",
+			"type": "promptString",
+			"description": "Azure AI Foundry endpoint (e.g., https://your-resource.openai.azure.com/openai/v1/)"
+		},
+		{
+			"id": "aiFoundryDeepResearchEndpoint",
+			"type": "promptString",
+			"description": "Azure AI Foundry deep research endpoint"
+		}
+	]
+}
