@@ -28,8 +28,10 @@ htmlcov/
 *.swo
 
 # GitHub Copilot
-.github/copilot-instructions.md
+.github/*.md
 .github/copilot
+.github/agents
+.github/prompts
 
 # OS
 .DS_Store

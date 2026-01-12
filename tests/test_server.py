@@ -21,7 +21,6 @@ from deep_research.server import (
     INSTRUCTION_PROMPT,
     WEB_SEARCH_PROMPT,
     ASK_PROMPT,
-    REASON_PROMPT,
     RESEARCH_SYSTEM_PROMPT,
     SYNTHESIS_PROMPT,
 )
@@ -126,18 +125,6 @@ def test_ask(question: str = "What are the main differences between Python and J
     return result
 
 
-def test_reason(problem: str = "Should I learn Rust or Go in 2026?"):
-    """Test reasoning capability."""
-    print("\n" + "="*60)
-    print("🧠 Testing: reason")
-    print("="*60)
-    print(f"Problem: {problem}\n")
-    
-    result = call_chat(REASON_PROMPT, problem, use_web_search=False)
-    print(result)
-    return result
-
-
 def test_triage(topic: str = "Research AI"):
     """Test triage phase."""
     print("\n" + "="*60)
@@ -186,13 +173,12 @@ def interactive_test():
         print("\nChoose a test:")
         print("1. web_search - Quick web search")
         print("2. ask - Conversational AI")
-        print("3. reason - Logical reasoning")
-        print("4. triage - Test triage phase")
-        print("5. clarify - Test clarification phase")
-        print("6. instruct - Test instruction phase")
+        print("3. triage - Test triage phase")
+        print("4. clarify - Test clarification phase")
+        print("5. instruct - Test instruction phase")
         print("0. Exit")
         
-        choice = input("\nEnter choice (0-6): ").strip()
+        choice = input("\nEnter choice (0-5): ").strip()
         
         if choice == "0":
             print("Goodbye!")
@@ -204,15 +190,12 @@ def interactive_test():
             question = input("Enter question: ").strip() or "What is quantum computing?"
             test_ask(question)
         elif choice == "3":
-            problem = input("Enter problem: ").strip() or "Should I learn Rust or Go in 2026?"
-            test_reason(problem)
-        elif choice == "4":
             topic = input("Enter topic to triage: ").strip() or "Research AI"
             test_triage(topic)
-        elif choice == "5":
+        elif choice == "4":
             topic = input("Enter topic for clarification: ").strip() or "Climate change"
             test_clarify(topic)
-        elif choice == "6":
+        elif choice == "5":
             topic = input("Enter topic: ").strip() or "AI in healthcare"
             test_instruction(topic)
         else:
@@ -228,8 +211,6 @@ if __name__ == "__main__":
             test_web_search(arg or "What is the current price of Bitcoin?")
         elif test_name == "ask":
             test_ask(arg or "What is quantum computing?")
-        elif test_name == "reason":
-            test_reason(arg or "Should I learn Rust or Go in 2026?")
         elif test_name == "triage":
             test_triage(arg or "Research AI")
         elif test_name == "clarify":
@@ -240,6 +221,6 @@ if __name__ == "__main__":
             interactive_test()
         else:
             print(f"Unknown test: {test_name}")
-            print("Available: web_search, ask, reason, triage, clarify, instruct, interactive")
+            print("Available: web_search, ask, triage, clarify, instruct, interactive")
     else:
         interactive_test()

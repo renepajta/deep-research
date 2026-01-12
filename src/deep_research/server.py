@@ -185,7 +185,7 @@ class UsageStats:
     model: str = ""
 
     def __str__(self) -> str:
-        return f"{self.total_tokens:,} tokens ({self.input_tokens:,}→{self.output_tokens:,}) │ {self.latency_ms:,}ms │ {self.model}"
+        return f"{self.total_tokens:,} tokens ({self.input_tokens:,} in, {self.output_tokens:,} out) | {self.latency_ms:,}ms | {self.model}"
 
 
 def extract_usage(response) -> UsageStats:
@@ -231,7 +231,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     )
 
     logger.info(
-        "Server ready │ chat: %s │ research: %s",
+        "Server ready | chat: %s | research: %s",
         os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-5.2"),
         os.environ.get("DEEP_RESEARCH_MODEL_DEPLOYMENT_NAME", "o3-deep-research"),
     )
@@ -799,7 +799,7 @@ async def call_chat(
     stats.model = model
 
     if phase:
-        logger.info("[%s] %s │ %s", req_id, phase, stats)
+        logger.info("[%s] %s | %s", req_id, phase, stats)
 
     return response.output_text or "", stats
 
@@ -826,7 +826,7 @@ async def perform_deep_research(
     LOG_INTERVAL_SECS = 30  # Log progress every 30 seconds
 
     start = time.perf_counter()
-    logger.info("[%s] research │ starting %s", req_id, model)
+    logger.info("[%s] research | starting %s", req_id, model)
 
     for attempt in range(MAX_RETRIES + 1):
         full_text = ""
@@ -861,9 +861,9 @@ async def perform_deep_research(
                             tools_used.append(f"{web_search_count} searches")
                         if code_interpreter_count:
                             tools_used.append(f"{code_interpreter_count} code runs")
-                        tools_str = f" │ {', '.join(tools_used)}" if tools_used else ""
+                        tools_str = f" | {', '.join(tools_used)}" if tools_used else ""
                         logger.info(
-                            "[%s] research │ %s elapsed │ %d chars (+%d)%s",
+                            "[%s] research | %s elapsed | %d chars (+%d)%s",
                             req_id,
                             elapsed_str,
                             len(full_text),
@@ -883,14 +883,26 @@ async def perform_deep_research(
 
                 elif event.type == "response.web_search_call.in_progress":
                     web_search_count += 1
-                    logger.info(
-                        "[%s] research │ web search #%d", req_id, web_search_count
-                    )
+
+                elif event.type == "response.output_item.done":
+                    # Log search query when a web_search_call completes
+                    item = getattr(event, "item", None)
+                    if item and getattr(item, "type", None) == "web_search_call":
+                        action = getattr(item, "action", None)
+                        if action and getattr(action, "type", None) == "search":
+                            query = getattr(action, "query", "")
+                            if query:
+                                logger.info(
+                                    "[%s] search #%d: %s",
+                                    req_id,
+                                    web_search_count,
+                                    truncate_query(query),
+                                )
 
                 elif event.type == "response.code_interpreter_call.in_progress":
                     code_interpreter_count += 1
                     logger.info(
-                        "[%s] research │ code interpreter #%d",
+                        "[%s] research | code interpreter #%d",
                         req_id,
                         code_interpreter_count,
                     )
@@ -930,7 +942,7 @@ async def perform_deep_research(
                 delay = RETRY_DELAYS[attempt]
                 elapsed_str = _format_elapsed(time.perf_counter() - start)
                 logger.warning(
-                    "[%s] research │ connection lost after %s │ retry %d/%d in %ds │ %s",
+                    "[%s] research | connection lost after %s, retry %d/%d in %ds: %s",
                     req_id,
                     elapsed_str,
                     attempt + 1,
@@ -947,17 +959,15 @@ async def perform_deep_research(
                 raise
 
     stats.latency_ms = int((time.perf_counter() - start) * 1000)
-    elapsed_str = _format_elapsed(stats.latency_ms / 1000)
     tools_summary = []
     if web_search_count:
         tools_summary.append(f"{web_search_count} searches")
     if code_interpreter_count:
         tools_summary.append(f"{code_interpreter_count} code runs")
-    tools_str = f" │ {', '.join(tools_summary)}" if tools_summary else ""
+    tools_str = f", {', '.join(tools_summary)}" if tools_summary else ""
     logger.info(
-        "[%s] research │ done │ %s │ %d chars%s │ %s",
+        "[%s] research | done | %d chars%s | %s",
         req_id,
-        elapsed_str,
         len(full_text),
         tools_str,
         stats,
@@ -990,7 +1000,7 @@ async def ask(
     """Answer questions conversationally with real-time web search. Fast responses for everyday queries."""
     req_id = gen_request_id()
     try:
-        logger.info("[%s] ask │ %s", req_id, truncate_query(question))
+        logger.info("[%s] ask | %s", req_id, truncate_query(question))
         result, stats = await call_chat(
             ctx,
             ASK_PROMPT,
@@ -1001,7 +1011,7 @@ async def ask(
         )
         return CallToolResult(content=[TextContent(type="text", text=result)])
     except Exception as e:
-        logger.error("[%s] ask failed │ %s", req_id, e)
+        logger.error("[%s] ask failed | %s", req_id, e)
         return CallToolResult(
             content=[TextContent(type="text", text=f"Request failed: {str(e)}")],
             isError=True,
@@ -1014,9 +1024,6 @@ async def deep_research(
         description="High-stakes research requiring exhaustive verification (use sparingly)"
     ),
     ctx: Context[ServerSession, AppContext] = None,
-    skip_synthesis: bool = Field(
-        default=False, description="Return raw research without final polish (faster)"
-    ),
 ) -> CallToolResult:
     """Exhaustive research using o3 model. VERY SLOW (5-30 min) and EXPENSIVE. Use ONLY for: due diligence, high-stakes decisions, adversarial verification, when web_research isn't thorough enough. For most research, use web_research instead."""
     req_id = gen_request_id()
@@ -1024,7 +1031,7 @@ async def deep_research(
     total_tokens = 0
 
     try:
-        logger.info("[%s] deep_research │ %s", req_id, truncate_query(topic))
+        logger.info("[%s] deep_research | %s", req_id, truncate_query(topic))
 
         # Phase 1: TRIAGE (5%)
         await ctx.report_progress(0, 100, "Analyzing query scope...")
@@ -1057,7 +1064,7 @@ async def deep_research(
         )
         total_tokens += stats.total_tokens
 
-        # Phase 3: RESEARCH (10-85%)
+        # Phase 3: RESEARCH (10-100%)
         await ctx.report_progress(
             10, 100, "Deep research in progress (this takes 5-30 minutes)..."
         )
@@ -1067,7 +1074,7 @@ async def deep_research(
         total_tokens += stats.total_tokens
 
         if not raw_research:
-            logger.error("[%s] deep_research │ no output generated", req_id)
+            logger.error("[%s] deep_research | no output generated", req_id)
             return CallToolResult(
                 content=[
                     TextContent(
@@ -1078,45 +1085,18 @@ async def deep_research(
                 isError=True,
             )
 
-        # Phase 4: SYNTHESIS (85-100%)
-        if skip_synthesis:
-            await ctx.report_progress(100, 100, "Complete (synthesis skipped)")
-            total_ms = int((time.perf_counter() - total_start) * 1000)
-            logger.info(
-                "[%s] deep_research │ done │ %d tokens │ %.1fs │ skipped synthesis",
-                req_id,
-                total_tokens,
-                total_ms / 1000,
-            )
-            return CallToolResult(content=[TextContent(type="text", text=raw_research)])
-
-        await ctx.report_progress(85, 100, "Synthesizing final report...")
-        synthesis_input = f"# Original Research Query\n{topic}\n\n# Research Scope\n{scope_context}\n\n# Raw Research Findings\n{raw_research}\n\n# Your Task\nSynthesize and enhance the above research into a polished, executive-ready report."
-        final_report, stats = await call_chat(
-            ctx,
-            SYNTHESIS_PROMPT,
-            synthesis_input,
-            use_web_search=False,
-            req_id=req_id,
-            phase="synthesize",
-        )
-        total_tokens += stats.total_tokens
-
-        if not final_report:
-            final_report = raw_research
-
         await ctx.report_progress(100, 100, "Research complete")
         total_ms = int((time.perf_counter() - total_start) * 1000)
         logger.info(
-            "[%s] deep_research │ done │ %d tokens │ %.1fs",
+            "[%s] deep_research | done | %d tokens | %.1fs",
             req_id,
             total_tokens,
             total_ms / 1000,
         )
-        return CallToolResult(content=[TextContent(type="text", text=final_report)])
+        return CallToolResult(content=[TextContent(type="text", text=raw_research)])
 
     except Exception as e:
-        logger.error("[%s] deep_research failed │ %s", req_id, e)
+        logger.error("[%s] deep_research failed | %s", req_id, e)
         return CallToolResult(
             content=[TextContent(type="text", text=f"Research failed: {str(e)}")],
             isError=True,
@@ -1132,10 +1112,9 @@ async def web_research(
 ) -> CallToolResult:
     """Search the web iteratively, crawling 10-25 sources (2-9 min). DEFAULT for research questions. Searches, reads, refines, repeats until comprehensive. Use for: market analysis, technical topics, competitive research, "tell me about X". Only escalate to deep_research for high-stakes verification."""
     req_id = gen_request_id()
-    start = time.perf_counter()
 
     try:
-        logger.info("[%s] web_research │ %s", req_id, truncate_query(topic))
+        logger.info("[%s] web_research | %s", req_id, truncate_query(topic))
 
         # Iterative multi-search research
         result, stats = await call_chat(
@@ -1147,18 +1126,10 @@ async def web_research(
             phase="web_research",
         )
 
-        elapsed_ms = int((time.perf_counter() - start) * 1000)
-        logger.info(
-            "[%s] web_research │ done │ %s │ %.1fs",
-            req_id,
-            stats,
-            elapsed_ms / 1000,
-        )
-
         return CallToolResult(content=[TextContent(type="text", text=result)])
 
     except Exception as e:
-        logger.error("[%s] web_research failed │ %s", req_id, e)
+        logger.error("[%s] web_research failed | %s", req_id, e)
         return CallToolResult(
             content=[TextContent(type="text", text=f"Web research failed: {str(e)}")],
             isError=True,
